@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход в админ-панель</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="glass-container login-container">
+    <h1>Админ-панель</h1>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error-box">
+        <p class="error"><%= error %></p>
+      </div>
+    <% } %>
+    <form action="/admin/login" method="POST">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="form-group">
+        <label for="username">Логин</label>
+        <input type="text" id="username" name="username" required autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label for="password">Пароль</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <button type="submit" class="submit-btn">Войти</button>
+    </form>
+    <p class="hint">Логин: admin / Пароль: secret123</p>
+  </div>
+</body>
+</html>

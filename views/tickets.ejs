@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <title>Заявки – Админ-панель</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body class="tickets-page">
+    <div class="admin-wrapper">
+        <div class="admin-header">
+            <h1>📬 Заявки</h1>
+            <div class="header-actions">
+                <a href="/admin/tickets/create" class="btn btn-primary">+ Создать заявку</a>
+                <a href="/admin" class="btn btn-secondary">Сообщения</a>
+                <form action="/admin/logout" method="POST">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="logout-btn">Выйти</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Flash-сообщения -->
+        <% if (typeof flash !== 'undefined' && flash.length > 0) { %>
+            <div class="flash-messages" style="margin-bottom: 20px;">
+                <% flash.forEach(msg => { %>
+                    <div class="success-box" style="margin-bottom:10px;"><%= msg.message %></div>
+                <% }) %>
+            </div>
+        <% } %>
+
+        <div class="filters-panel">
+            <form method="GET" action="/admin/tickets" class="filters-form">
+                <div class="filter-group">
+                    <label>ID:</label>
+                    <input type="number" name="ticket_id" value="<%= filters.ticket_id || '' %>" placeholder="Номер">
+                </div>
+                <div class="filter-group">
+                    <label>Организация:</label>
+                    <input type="text" name="organization" value="<%= filters.organization || '' %>" placeholder="Название">
+                </div>
+                <div class="filter-group">
+                    <label>Email:</label>
+                    <input type="text" name="email" value="<%= filters.email || '' %>" placeholder="От кого">
+                </div>
+                <div class="filter-group">
+                    <label>Создано от:</label>
+                    <input type="date" name="date_from" value="<%= filters.date_from || '' %>">
+                </div>
+                <div class="filter-group">
+                    <label>Создано до:</label>
+                    <input type="date" name="date_to" value="<%= filters.date_to || '' %>">
+                </div>
+                <div class="filter-group">
+                    <label>Закрыл:</label>
+                    <select name="closed_by" class="filter-select">
+                        <option value="">Все</option>
+                        <% users.forEach(user => { %>
+                            <option value="<%= user.username %>" <%= filters.closed_by === user.username ? 'selected' : '' %>>
+                                <%= user.display_name || user.username %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Назначен:</label>
+                    <select name="assigned_to" class="filter-select">
+                        <option value="">Все</option>
+                        <% users.forEach(user => { %>
+                            <option value="<%= user.username %>" <%= filters.assigned_to === user.username ? 'selected' : '' %>>
+                                <%= user.display_name || user.username %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+                <input type="hidden" name="tab" value="<%= filters.tab || '' %>">
+                <input type="hidden" name="sub" value="<%= filters.sub || '' %>">
+                <input type="hidden" name="period" value="<%= filters.period || '' %>">
+                <input type="hidden" name="sort" value="<%= filters.sort || '' %>">
+                <input type="hidden" name="order" value="<%= filters.order || '' %>">
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">🔍 Применить</button>
+                    <a href="/admin/tickets" class="btn btn-secondary">🗑️ Сбросить</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="tabs-panel">
+            <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'all', sub:'', period:'', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="tab-btn <%= (!filters.tab || filters.tab==='all') ? 'active' : '' %>">📁 Все сообщения</a>
+            <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'open', sub:filters.sub||'open', period:'', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="tab-btn <%= filters.tab==='open' ? 'active' : '' %>">📁 Открытые</a>
+            <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', sub:'', period:filters.period||'all', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="tab-btn <%= filters.tab==='closed' ? 'active' : '' %>">📁 Закрытые</a>
+        </div>
+
+        <% if (filters.tab === 'open') { %>
+            <div class="subcategories">
+                <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'open', sub:'open', period:'', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="sub-link <%= filters.sub==='open' || !filters.sub ? 'active' : '' %>">Открыт</a>
+                <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'open', sub:'waiting', period:'', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="sub-link <%= filters.sub==='waiting' ? 'active' : '' %>">В ожидании</a>
+            </div>
+        <% } else if (filters.tab === 'closed') { %>
+            <div class="subcategories">
+                <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', period:'today', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="sub-link <%= filters.period==='today' ? 'active' : '' %>">Сегодня</a>
+                <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', period:'week', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="sub-link <%= filters.period==='week' ? 'active' : '' %>">Неделя</a>
+                <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', period:'month', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="sub-link <%= filters.period==='month' ? 'active' : '' %>">Месяц</a>
+                <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', period:'half_year', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="sub-link <%= filters.period==='half_year' ? 'active' : '' %>">Полгода</a>
+                <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', period:'year', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="sub-link <%= filters.period==='year' ? 'active' : '' %>">Год</a>
+                <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', period:'all', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" class="sub-link <%= !filters.period || filters.period==='all' ? 'active' : '' %>">Всё время</a>
+            </div>
+        <% } %>
+
+        <!-- Форма для массовых операций -->
+        <form id="bulk-form" method="POST" action="/admin/tickets/bulk">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <input type="hidden" name="action" id="bulk-action" value="">
+
+            <div class="table-container">
+                <table class="messages-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="select-all" onclick="toggleAll(this)"></th>
+                            <th class="sortable"><a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'id', order: filters.sort==='id' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">ID <%= filters.sort === 'id' ? (filters.order === 'asc' ? '▲' : '▼') : '' %></a></th>
+                            <th class="sortable"><a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'organization', order: filters.sort==='organization' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">Организация <%= filters.sort === 'organization' ? (filters.order === 'asc' ? '▲' : '▼') : '' %></a></th>
+                            <th class="sortable"><a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'subject', order: filters.sort==='subject' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">Тема <%= filters.sort === 'subject' ? (filters.order === 'asc' ? '▲' : '▼') : '' %></a></th>
+                            <th class="sortable"><a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'email_date', order: filters.sort==='email_date' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">Создано <%= filters.sort === 'email_date' ? (filters.order === 'asc' ? '▲' : '▼') : '' %></a></th>
+                            <th class="sortable"><a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'last_reply_at', order: filters.sort==='last_reply_at' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">Последний ответ <%= filters.sort === 'last_reply_at' ? (filters.order === 'asc' ? '▲' : '▼') : '' %></a></th>
+                            <th class="sortable"><a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'status', order: filters.sort==='status' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">Статус <%= filters.sort === 'status' ? (filters.order === 'asc' ? '▲' : '▼') : '' %></a></th>
+                            <th>Закрыл</th>
+                            <th>Назначен</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% const statusNames = { open: 'Открыта', waiting: 'В ожидании', closed: 'Закрыта' }; %>
+                        <% tickets.forEach(ticket => { %>
+                            <tr onclick="window.location='/admin/tickets/<%= ticket.id %>'" class="clickable-row">
+                                <td><input type="checkbox" name="ids" value="<%= ticket.id %>" class="ticket-checkbox" onclick="event.stopPropagation()"></td>
+                                <td><%= ticket.id %></td>
+                                <td class="organization-cell">
+                                    <strong><%= ticket.organization || '—' %></strong>
+                                    <% if (ticket.from_email) { %><br><small><%= ticket.from_email %></small><% } %>
+                                </td>
+                                <td class="subject-cell"><%= ticket.subject %></td>
+                                <td class="date-cell"><%= ticket.email_date ? moment.utc(ticket.email_date).utcOffset(300).format('DD.MM.YYYY, HH:mm:ss') : '—' %></td>
+                                <td class="date-cell"><%= ticket.last_reply_at ? moment.utc(ticket.last_reply_at).utcOffset(300).format('DD.MM.YYYY, HH:mm:ss') : '—' %></td>
+                                <td><span class="status-badge status-<%= ticket.status %>"><%= statusNames[ticket.status] || ticket.status %></span></td>
+                                <td><%= ticket.closed_by_display || ticket.closed_by || '—' %></td>
+                                <td><%= ticket.assigned_to_display || ticket.assigned_to || '—' %></td>
+                            </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="bulk-actions" style="margin-top: 15px; display: flex; gap: 10px; align-items: center;">
+                <button type="button" class="btn btn-primary" onclick="submitBulk('assign')">Назначить выбранным</button>
+                <button type="button" class="btn btn-warning" onclick="submitBulk('close')">Закрыть выбранные</button>
+                <button type="button" class="btn btn-success" onclick="submitBulk('open')">Открыть выбранные</button>
+            </div>
+        </form>
+
+        <div class="results-count">Найдено: <%= tickets.length %> заявок</div>
+    </div>
+
+    <!-- Скрытый элемент с данными пользователей, не смешиваем с JS -->
+    <div id="users-data" style="display:none;"><%= JSON.stringify(users.map(u => ({ username: u.username, display: u.display_name || u.username }))) %></div>
+
+    <script>
+
+        const usersDataEl = document.getElementById('users-data');
+        const usersList = usersDataEl ? JSON.parse(usersDataEl.textContent.trim()) : [];
+
+        function showSelectModal(title, options, onSelect) {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            let selectHtml = '<select id="modal-select"><option value="">-- выберите --</option>';
+            for (const [val, text] of Object.entries(options)) {
+                selectHtml += `<option value="${val}">${text}</option>`;
+            }
+            selectHtml += '</select>';
+            overlay.innerHTML = `<div class="modal-content"><h3>${title}</h3>${selectHtml}<div class="modal-buttons"><button class="btn-cancel" id="modal-cancel">Отмена</button><button class="btn-confirm" id="modal-confirm">Подтвердить</button></div></div>`;
+            document.body.appendChild(overlay);
+            document.getElementById('modal-cancel').onclick = () => overlay.remove();
+            document.getElementById('modal-confirm').onclick = () => {
+                const value = document.getElementById('modal-select').value;
+                overlay.remove();
+                if (onSelect) onSelect(value);
+            };
+        }
+
+        function showAlert(title, message, callback) {
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `<div class="modal-content"><h3>${title}</h3><p>${message}</p><div class="modal-buttons"><button class="btn-confirm" id="modal-ok">ОК</button></div></div>`;
+            document.body.appendChild(overlay);
+            document.getElementById('modal-ok').onclick = () => {
+                overlay.remove();
+                if (callback) callback();
+            };
+        }
+
+        function toggleAll(source) {
+            const checkboxes = document.querySelectorAll('.ticket-checkbox');
+            checkboxes.forEach(cb => cb.checked = source.checked);
+        }
+
+        function submitBulk(action) {
+            const checkboxes = document.querySelectorAll('.ticket-checkbox:checked');
+            if (checkboxes.length === 0) {
+                showAlert('Внимание', 'Отметьте хотя бы одну заявку.');
+                return;
+            }
+            document.getElementById('bulk-action').value = action;
+
+            const options = {};
+            usersList.forEach(u => { options[u.username] = u.display; });
+
+            if (action === 'assign') {
+                showSelectModal('Выберите агента', options, (agent) => {
+                    if (!agent) return;
+                    addHiddenField('assigned_to', agent);
+                    document.getElementById('bulk-form').submit();
+                });
+            } else if (action === 'close') {
+                showSelectModal('Кем закрыто?', options, (closedBy) => {
+                    if (!closedBy) return;
+                    addHiddenField('closed_by', closedBy);
+                    document.getElementById('bulk-form').submit();
+                });
+            } else if (action === 'open') {
+                document.getElementById('bulk-form').submit();
+            }
+        }
+
+        function addHiddenField(name, value) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            document.getElementById('bulk-form').appendChild(input);
+        }
+    </script>
+</body>
+</html>

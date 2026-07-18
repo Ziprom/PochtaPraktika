@@ -1,0 +1,37 @@
+# Секреты и конфигурация
+.env
+
+# База данных SQLite
+*.db
+*.db-journal
+*.sqlite
+
+# Зависимости
+node_modules/
+
+# Логи
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Временные файлы редакторов
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Файлы, создаваемые при тестировании
+coverage/
+.nyc_output/
+
+# Кэш менеджеров пакетов
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  <title>Админ-панель - Сообщения</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="messages-page">
+  <div class="admin-wrapper">
+    <div class="admin-header">
+      <h1>📬 Сообщения</h1>
+      <div class="header-actions">
+        <a href="/admin/tickets" class="btn btn-primary">Заявки</a>
+        <form action="/admin/logout" method="POST">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button type="submit" class="logout-btn">Выйти</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Форма фильтров (без изменений) -->
+    <div class="filters-panel">
+      <form method="GET" action="/admin" class="filters-form">
+        <div class="filter-group">
+          <label for="uid_from">UID от:</label>
+          <input type="number" id="uid_from" name="uid_from" 
+                 value="<%= filters.uid_from || '' %>" placeholder="Например: 10">
+        </div>
+        <div class="filter-group">
+          <label for="uid_to">UID до:</label>
+          <input type="number" id="uid_to" name="uid_to" 
+                 value="<%= filters.uid_to || '' %>" placeholder="Например: 50">
+        </div>
+        <div class="filter-group search-group">
+          <label for="search">Поиск:</label>
+          <input type="text" id="search" name="search" 
+                 value="<%= filters.search || '' %>" placeholder="Тема, текст или email...">
+        </div>
+        <div class="filter-group">
+          <label for="date_from">Дата письма от:</label>
+          <input type="date" id="date_from" name="date_from" 
+                 value="<%= filters.date_from || '' %>">
+        </div>
+        <div class="filter-group">
+          <label for="date_to">Дата письма до:</label>
+          <input type="date" id="date_to" name="date_to" 
+                 value="<%= filters.date_to || '' %>">
+        </div>
+        <input type="hidden" name="tab" value="<%= filters.tab || 'all' %>">
+        <input type="hidden" name="sub" value="<%= filters.sub || '' %>">
+        <input type="hidden" name="period" value="<%= filters.period || '' %>">
+        <input type="hidden" name="sort" value="<%= filters.sort || '' %>">
+        <input type="hidden" name="order" value="<%= filters.order || '' %>">
+        <div class="filter-actions">
+          <button type="submit" class="btn btn-primary">🔍 Применить</button>
+          <a href="/admin" class="btn btn-secondary">🗑️ Сбросить</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Вкладки и подкатегории (без изменений) -->
+    <div class="tabs-panel">
+      <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'all', sub:'', period:'', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+         class="tab-btn <%= (!filters.tab || filters.tab==='all') ? 'active' : '' %>">
+        📁 Все сообщения
+      </a>
+      <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'open', sub:filters.sub||'open', period:'', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+         class="tab-btn <%= filters.tab==='open' ? 'active' : '' %>">
+        📁 Открытые
+      </a>
+      <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', sub:'', period:filters.period||'all', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+         class="tab-btn <%= filters.tab==='closed' ? 'active' : '' %>">
+        📁 Закрытые
+      </a>
+    </div>
+
+    <% if (filters.tab === 'open') { %>
+      <div class="subcategories">
+        <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'open', sub:'open', period:'', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+           class="sub-link <%= filters.sub==='open' || !filters.sub ? 'active' : '' %>">Открыт</a>
+        <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'open', sub:'waiting', period:'', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+           class="sub-link <%= filters.sub==='waiting' ? 'active' : '' %>">В ожидании</a>
+      </div>
+    <% } else if (filters.tab === 'closed') { %>
+      <div class="subcategories">
+        <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', sub:'', period:'today', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+           class="sub-link <%= filters.period==='today' ? 'active' : '' %>">Сегодня</a>
+        <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', sub:'', period:'week', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+           class="sub-link <%= filters.period==='week' ? 'active' : '' %>">Неделя</a>
+        <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', sub:'', period:'month', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+           class="sub-link <%= filters.period==='month' ? 'active' : '' %>">Месяц</a>
+        <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', sub:'', period:'half_year', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+           class="sub-link <%= filters.period==='half_year' ? 'active' : '' %>">Полгода</a>
+        <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', sub:'', period:'year', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+           class="sub-link <%= filters.period==='year' ? 'active' : '' %>">Год</a>
+        <a href="?<%= new URLSearchParams(Object.entries({...filters, tab:'closed', sub:'', period:'all', sort: filters.sort, order: filters.order}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>" 
+           class="sub-link <%= !filters.period || filters.period==='all' ? 'active' : '' %>">Всё время</a>
+      </div>
+    <% } %>
+
+    <div class="results-count">
+      Найдено: <%= messages ? messages.length : 0 %> сообщений
+    </div>
+
+    <div class="table-container">
+      <table class="messages-table">
+        <thead>
+          <tr>
+            <th class="sortable">
+              <a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'id', order: filters.sort==='id' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">
+                ID <%= filters.sort === 'id' ? (filters.order === 'asc' ? '▲' : '▼') : '' %>
+              </a>
+            </th>
+            <th class="sortable">
+              <a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'from_email', order: filters.sort==='from_email' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">
+                От кого (Email) <%= filters.sort === 'from_email' ? (filters.order === 'asc' ? '▲' : '▼') : '' %>
+              </a>
+            </th>
+            <th class="sortable">
+              <a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'subject', order: filters.sort==='subject' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">
+                Тема <%= filters.sort === 'subject' ? (filters.order === 'asc' ? '▲' : '▼') : '' %>
+              </a>
+            </th>
+            <th>Текст сообщения</th>
+            <th class="sortable">
+              <a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'email_date', order: filters.sort==='email_date' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">
+                Получено (письмо) <%= filters.sort === 'email_date' ? (filters.order === 'asc' ? '▲' : '▼') : '' %>
+              </a>
+            </th>
+            <th class="sortable">
+              <a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'ticket_status', order: filters.sort==='ticket_status' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">
+                Статус <%= filters.sort === 'ticket_status' ? (filters.order === 'asc' ? '▲' : '▼') : '' %>
+              </a>
+            </th>
+            <th class="sortable">
+              <a href="?<%= new URLSearchParams(Object.entries({...filters, sort:'last_reply_at', order: filters.sort==='last_reply_at' && filters.order==='asc' ? 'desc' : 'asc'}).filter(([_,v]) => v != null && v !== '' && v !== undefined)).toString() %>">
+                Последний ответ <%= filters.sort === 'last_reply_at' ? (filters.order === 'asc' ? '▲' : '▼') : '' %>
+              </a>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <% const statusNames = { open: 'Открыта', waiting: 'В ожидании', closed: 'Закрыта' }; %>
+          <% if (messages && messages.length > 0) { %>
+            <% messages.forEach(msg => { %>
+              <tr <%= msg.ticket_id ? `class="clickable-row" onclick="window.location='/admin/tickets/${msg.ticket_id}'"` : '' %>>
+                <td><%= msg.id %></td>
+                <td class="email-cell"><%= msg.from_email %></td>
+                <td class="subject-cell"><%= msg.subject %></td>
+                <td class="message-cell"><%= msg.body_text %></td>
+                <td class="date-cell"><%= msg.email_date ? moment.utc(msg.email_date).utcOffset(300).format('DD.MM.YYYY, HH:mm:ss') : '—' %></td>
+                <td><% if (msg.ticket_status) { %><span class="status-badge status-<%= msg.ticket_status %>"><%= statusNames[msg.ticket_status] || msg.ticket_status %></span><% } else { %>—<% } %></td>
+                <td class="date-cell"><%= msg.last_reply_at ? moment.utc(msg.last_reply_at).utcOffset(300).format('DD.MM.YYYY, HH:mm:ss') : '—' %></td>
+              </tr>
+            <% }) %>
+          <% } else { %>
+            <tr><td colspan="7" class="no-messages">Нет сообщений, соответствующих фильтрам</td></tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<%= csrfToken %>">
+    <title>Тикет #<%= ticket.id %></title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="ticket-wrapper">
+        <!-- Flash-сообщения -->
+        <% if (typeof flash !== 'undefined' && flash.length > 0) { %>
+            <div class="flash-messages" style="margin-bottom: 20px;">
+                <% flash.forEach(msg => { %>
+                    <div class="success-box" style="margin-bottom:10px;">
+                        <%= msg.message %>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+
+        <!-- Верхняя закреплённая область -->
+        <div class="ticket-head">
+            <div class="ticket-topbar">
+                <a href="/admin/tickets" class="btn btn-secondary">← К списку заявок</a>
+                <button id="expand-chat-btn" class="btn btn-secondary" onclick="toggleFullscreenChat()" style="margin-left: 10px;">
+                    📖 Раскрыть чат
+                </button>
+            </div>
+            <h2>#<%= ticket.id %> – <%= ticket.subject %></h2>
+            <% const statusNames = { open: 'Открыта', waiting: 'В ожидании', closed: 'Закрыта' }; %>
+            <div class="ticket-meta">
+                <% if (ticket.organization) { %><span>Организация: <%= ticket.organization %></span><% } %>
+                <% if (ticket.from_email) { %><span>Email: <%= ticket.from_email %></span><% } %>
+                <% if (ticket.closed_by) { %><span>Закрыл: <%= ticket.closed_by_display || ticket.closed_by %></span><% } %>
+                <span>Статус: <span class="status-badge status-<%= ticket.status %>"><%= statusNames[ticket.status] || ticket.status %></span></span>
+                <% if (typeof lastNote !== 'undefined' && lastNote) { %>
+                    <span class="last-note"> — <%= lastNote %></span>
+                <% } %>
+                <% if (ticket.assigned_to) { %><span>Назначен: <%= ticket.assigned_to_display || ticket.assigned_to %></span><% } %>
+            </div>
+
+            <!-- Редактирование организации и email -->
+            <div class="edit-fields" style="margin-bottom: 15px;">
+                <form method="POST" action="/admin/tickets/<%= ticket.id %>/edit" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <label>
+                        Организация:
+                        <input type="text" name="organization" value="<%= ticket.organization || '' %>" style="width:180px;">
+                    </label>
+                    <label>
+                        Email:
+                        <input type="email" name="from_email" value="<%= ticket.from_email || '' %>" style="width:200px;">
+                    </label>
+                    <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                </form>
+            </div>
+
+            <!-- Назначение + статус/заметка -->
+            <form method="POST" action="/admin/tickets/<%= ticket.id %>/assign" class="assign-form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <label>Назначить:
+                    <select name="assigned_to" onchange="this.form.submit()">
+                        <option value="">Не назначен</option>
+                        <% agents.forEach(agent => { %>
+                            <option value="<%= agent.username %>" <%= ticket.assigned_to === agent.username ? 'selected' : '' %>>
+                                <%= agent.display_name || agent.username %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </label>
+            </form>
+        </div>
+
+        <!-- Прокручиваемая область чата -->
+        <div class="chat-messages">
+            <% messages.forEach(msg => { %>
+                <div class="message <%= msg.is_internal ? 'internal' : 'external' %>">
+                    <div class="message-header">
+                        <span class="sender"><%= msg.from_email %></span>
+                        <span class="time"><%= moment.utc(msg.created_at).utcOffset(300).format('DD.MM.YYYY, HH:mm:ss') %></span>
+                    </div>
+                    <div class="message-body"><%= msg.body_text %></div>
+                </div>
+                <hr class="message-separator">
+            <% }) %>
+        </div>
+
+        <!-- Нижняя закреплённая область с формами -->
+        <div class="ticket-footer">
+            <!-- Форма смены статуса -->
+            <div class="status-form">
+                <form method="POST" action="/admin/tickets/<%= ticket.id %>/status">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <div class="status-options">
+                        <% if (ticket.status !== 'closed') { %>
+                            <label>
+                                Статус:
+                                <select name="status" id="status-select" onchange="toggleClosedBy(this.value)">
+                                    <option value="open" <%= ticket.status === 'open' ? 'selected' : '' %>>Открыт</option>
+                                    <option value="waiting" <%= ticket.status === 'waiting' ? 'selected' : '' %>>В ожидании</option>
+                                    <option value="closed">Закрыть</option>
+                                </select>
+                            </label>
+                            <label id="closed_by_label" class="d-none">
+                                Кем закрыто:
+                                <select name="closed_by" id="closed_by_select">
+                                    <option value="">Выберите...</option>
+                                    <% agents.forEach(agent => { %>
+                                        <option value="<%= agent.username %>"><%= agent.display_name || agent.username %></option>
+                                    <% }) %>
+                                </select>
+                            </label>
+                            <label>
+                                Заметка:
+                                <input type="text" name="note" placeholder="Необязательно">
+                            </label>
+                            <button type="submit" class="btn btn-primary" onclick="return checkClosed()">Сохранить статус</button>
+                        <% } else { %>
+                            <input type="hidden" name="status" value="open">
+                            <button type="submit" class="btn btn-warning">Открыть снова</button>
+                        <% } %>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Форма отправки ответа -->
+            <% if (ticket.status !== 'closed') { %>
+            <div class="reply-form">
+                <form method="POST" action="/admin/tickets/<%= ticket.id %>/reply">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <textarea name="body" rows="4" placeholder="<%= ticket.from_email ? 'Ваш ответ... (письмо будет отправлено клиенту на почту)' : 'Добавить комментарий...' %>" required></textarea>
+                    <div class="reply-options">
+                        <label>
+                            Подпись:
+                            <select name="signature">
+                                <option value="">Без подписи</option>
+                                <option value="С уважением, Центр Компьютерных Технологий">С уважением, Центр Компьютерных Технологий</option>
+                            </select>
+                        </label>
+                        <button type="submit" class="btn btn-primary"><%= ticket.from_email ? 'Отправить ответ' : 'Добавить комментарий' %></button>
+                    </div>
+                </form>
+            </div>
+            <% } %>
+        </div>
+    </div>
+
+    <script>
+        // Кастомное модальное окно
+        function showModal(title, message, onConfirm) {
+            const existing = document.querySelector('.modal-overlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.innerHTML = `
+                <div class="modal-content">
+                    <h3>${title}</h3>
+                    <p>${message}</p>
+                    <div class="modal-buttons">
+                        <button class="btn-cancel" id="modal-cancel">Отмена</button>
+                        <button class="btn-confirm" id="modal-confirm">ОК</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            document.getElementById('modal-cancel').onclick = () => overlay.remove();
+            document.getElementById('modal-confirm').onclick = () => {
+                overlay.remove();
+                if (onConfirm) onConfirm();
+            };
+        }
+
+        function checkClosed() {
+            const statusSelect = document.getElementById('status-select');
+            const closedBySelect = document.getElementById('closed_by_select');
+            if (statusSelect.value === 'closed' && (!closedBySelect || !closedBySelect.value)) {
+                showModal('Внимание', 'Пожалуйста, выберите, кем закрывается заявка.');
+                return false;
+            }
+            return true;
+        }
+
+        function toggleClosedBy(value) {
+            const label = document.getElementById('closed_by_label');
+            const select = document.getElementById('closed_by_select');
+            if (value === 'closed') {
+                label.classList.remove('d-none');
+                if (select) select.focus();
+            } else {
+                label.classList.add('d-none');
+            }
+        }
+
+        function toggleFullscreenChat() {
+            const chat = document.querySelector('.chat-messages');
+            const head = document.querySelector('.ticket-head');
+            const footer = document.querySelector('.ticket-footer');
+            const btn = document.getElementById('expand-chat-btn');
+            const body = document.body;
+
+            if (!chat.classList.contains('chat-fullscreen')) {
+                chat.classList.add('chat-fullscreen');
+                head.style.display = 'none';
+                footer.style.display = 'none';
+                btn.innerHTML = '📖 Свернуть чат';
+                body.classList.add('no-scroll');
+
+                if (!document.getElementById('close-fullscreen-btn')) {
+                    const closeBtn = document.createElement('button');
+                    closeBtn.id = 'close-fullscreen-btn';
+                    closeBtn.className = 'btn btn-secondary';
+                    closeBtn.innerHTML = '✕ Закрыть';
+                    closeBtn.style.position = 'fixed';
+                    closeBtn.style.top = '10px';
+                    closeBtn.style.right = '10px';
+                    closeBtn.style.zIndex = '10001';
+                    closeBtn.onclick = toggleFullscreenChat;
+                    document.body.appendChild(closeBtn);
+                }
+            } else {
+                chat.classList.remove('chat-fullscreen');
+                head.style.display = '';
+                footer.style.display = '';
+                btn.innerHTML = '📖 Раскрыть чат';
+                body.classList.remove('no-scroll');
+
+                const closeBtn = document.getElementById('close-fullscreen-btn');
+                if (closeBtn) closeBtn.remove();
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                const chat = document.querySelector('.chat-messages');
+                if (chat.classList.contains('chat-fullscreen')) {
+                    toggleFullscreenChat();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

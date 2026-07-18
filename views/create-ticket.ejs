@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создать заявку</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="glass-container" style="max-width:650px;">
+        <h2>Создать заявку</h2>
+        <form method="POST" action="/admin/tickets/create">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="form-group">
+                <label>Организация:</label>
+                <input type="text" name="organization" placeholder="Наименование организации">
+            </div>
+            <div class="form-group">
+                <label>Email (необязательно):</label>
+                <input type="email" name="from_email" placeholder="email@example.com">
+            </div>
+            <div class="form-group">
+                <label>Тема *</label>
+                <input type="text" name="subject" required>
+            </div>
+            <div class="form-group">
+                <label>Текст *</label>
+                <textarea name="body" rows="6" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary submit-btn">Создать</button>
+        </form>
+        <a href="/admin/tickets" class="btn btn-secondary" style="display:block; margin-top:15px;">← Назад</a>
+    </div>
+</body>
+</html>
